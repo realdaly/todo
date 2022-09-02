@@ -38,7 +38,7 @@
 
         .container .form form #taskTitle {
             padding: .5rem .5rem;
-            width: auto;
+            width: 24.1rem;
             flex: 1;
             font-size: 17px;
             border: 1px solid rgb(51, 51, 51, .2);
@@ -142,16 +142,22 @@
             return cookieValue;
         }
         var csrftoken = getCookie("csrftoken");
-
         var activeItem = null;
+        var listSnapshot = [];
 
         async function renderList(){
-            document.querySelector(".list").innerHTML = "";
             //Fetching all tasks
             fetch("http://127.0.0.1:8000/api/taskList/")
             .then(response => response.json())
             .then(data => {
+                var list = data;
                 for(var i in data){
+                    try{
+                        document.getElementById(`data-row-${i}`).remove();
+                    } catch(error){
+
+                    }
+
                     var title = `<p class="itemTitle">${data[i].title}</p>`;
                     if(data[i].completed == true){
                         title = `<strike class="itemTitle">${data[i].title}</strike>`
@@ -159,7 +165,7 @@
 
                     let task =
                     `
-                    <div class="listItem">
+                    <div class="listItem" id="data-row-${i}">
                         ${title}
                         <p class="button edit">Edit</p>
                         <p class="button delete">×</p>
@@ -167,6 +173,14 @@
                     `;
                     document.querySelector(".list").innerHTML += task;
                 }
+
+                if(listSnapshot.length > list.length){
+                    for(var i = list.length; i < listSnapshot.length; i++){
+                        document.getElementById(`data-row-${i}`).remove();
+                    }
+                }
+                listSnapshot = list;
+
                 for(i in data){
                     const editBtn = document.querySelectorAll(".edit")[i];
                     const deleteBtn = document.querySelectorAll(".delete")[i];
