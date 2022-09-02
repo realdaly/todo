@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TO DO</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: sans-serif;
+        }
+
+        body {
+            background: linear-gradient(90deg, #2193b0, #a2e2f0);
+            min-height: calc(100vh - 100px);
+            margin: 50px;
+        }
+
+        .container {
+            margin: 0 auto;
+            width: fit-content;
+            min-width: 30rem;
+            box-shadow: rgba(50, 50, 93, 0.25) 0px 2px 5px -1px, rgba(0, 0, 0, 0.3) 0px 1px 3px -1px;
+        }
+
+        .container .form form {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1rem;
+            background: whitesmoke;
+            border-top-right-radius: 3px;
+            border-top-left-radius: 3px;
+        }
+
+        .container .form form #taskTitle {
+            padding: .5rem .5rem;
+            width: auto;
+            flex: 1;
+            font-size: 17px;
+            border: 1px solid rgb(51, 51, 51, .2);
+        }
+
+        .container .form form #submitBtn {
+            background: #0d6efd;
+            cursor: pointer;
+            padding: .5rem 1.5rem;
+            font-size: 17px;
+            font-weight: bolder;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            transition: all .3s;
+        }
+
+        .container .form form #submitBtn:hover {
+            background-color: #0062cc;
+            border-color: #005cbf;
+        }
+
+        .container .list {
+            border-top: 1px solid rgb(51, 51, 51, .2);
+            background: whitesmoke;
+            border-bottom-left-radius: 3px;
+            border-bottom-right-radius: 3px;
+        }
+
+        .container .list .listItem {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: .5rem;
+            border-bottom: 1px solid rgb(51, 51, 51, .2);
+            padding: 1rem;
+        }
+
+        .container .list .listItem:last-child {
+            border: none;
+        }
+
+        .container .list .listItem .itemTitle {
+            flex: 3;
+            font-size: 17px;
+            cursor: pointer;
+            
+        }
+
+        .container .list .listItem .button {
+            padding: .5rem 1rem;
+            border: 2px solid rgb(13, 110, 253, .5);
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: bolder;
+            color: #000;
+            transition: all .3s;
+            font-size: 15px;
+        }
+
+        .container .list .listItem .button:hover {
+            background: rgb(13, 110, 253);
+            color: #fff;
+        }
+
+        .container .list .listItem .delete {
+            border-color: rgba(255, 99, 71, .5);
+        }
+
+        .container .list .listItem .delete:hover {
+            background: rgba(255, 99, 71);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form">
+            <form action="">
+                <input type="text" id="taskTitle" placeholder="Add Task" name="taskTitle">
+                <input type="submit" id="submitBtn" value="Add">
+            </form>
+        </div>
+        <div class="list">
+            
+        </div>
+    </div>
+    <script>
+        //csrf_token stuff
+        function getCookie(name){
+            var cookieValue = null;
+            if(document.cookie && document.cookie !== ''){
+                var cookies = document.cookie.split(';');
+                for(var i = 0; i < cookies.length; i++){
+                    var cookie = cookies[i].trim();
+                    if(cookie.substring(0, name.length + 1) === (name + '=')){
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        var csrftoken = getCookie("csrftoken");
+
+        var activeItem = null;
+
+        async function renderList(){
+            document.querySelector(".list").innerHTML = "";
+            //Fetching all tasks
+            fetch("http://127.0.0.1:8000/api/taskList/")
+            .then(response => response.json())
+            .then(data => {
+                for(var i in data){
+                    var title = `<p class="itemTitle">${data[i].title}</p>`;
+                    if(data[i].completed == true){
+                        title = `<strike class="itemTitle">${data[i].title}</strike>`
+                    }
+
+                    let task =
+                    `
+                    <div class="listItem">
+                        ${title}
+                        <p class="button edit">Edit</p>
+                        <p class="button delete">×</p>
+                    </div>  
+                    `;
+                    document.querySelector(".list").innerHTML += task;
+                }
+                for(i in data){
+                    const editBtn = document.querySelectorAll(".edit")[i];
+                    const deleteBtn = document.querySelectorAll(".delete")[i];
+                    const itemTitle = document.querySelectorAll(".itemTitle")[i];
+
+                    editBtn.onclick = function(item){
+                        return function(){
+                            editItem(item)
+                        }
+                    }(data[i])
+
+                    deleteBtn.onclick = function(item){
+                        return function(){
+                            deleteItem(item)
+                        }
+                    }(data[i])
+
+                    itemTitle.onclick = function(item){
+                        return function(){
+                            strike(item)
+                        }
+                    }(data[i])
+                }
+            })
+            
+            
+        }
+        renderList();
+
+        
+        
+
+        //Sending form content to database
+        const taskForm = document.querySelector("form");
+        taskForm.onsubmit = function(e){
+            e.preventDefault();
+            var url = 'http://127.0.0.1:8000/api/taskCreate/';
+            if(activeItem != null){
+                var url  = `http://127.0.0.1:8000/api/taskUpdate/${activeItem.id}`;
+                activeItem = null;
+            }
+            const taskTitle = document.getElementById("taskTitle").value;
+            fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json",
+                    "X-CSRFToken": csrftoken,
+                },
+                body: JSON.stringify({"title":taskTitle})
+            }).then(response => {
+                renderList();
+                const taskForm = document.querySelector("form").reset();
+            })
+        }
+
+
+        //Editing list items
+        function editItem(item){
+            activeItem = item;
+            document.getElementById("taskTitle").value = activeItem.title;
+        }
+
+        //Deleting list items from database
+        function deleteItem(item){
+            fetch(`http://127.0.0.1:8000/api/taskDelete/${item.id}`, {
+                method: "DELETE",
+                headers: {
+                    "Content-type": "application/json",
+                    "X-CSRFToken": csrftoken,
+                }
+            }).then(response => {
+                renderList();
+            });
+        }
+
+        //Making strike effect on task click
+        function strike(item){
+            item.completed = !item.completed;
+            fetch(`http://127.0.0.1:8000/api/taskUpdate/${item.id}`, {
+                method: "POST",
+                headers: {
+                    "Content-type": "application/json",
+                    "X-CSRFToken": csrftoken,
+                },
+                body: JSON.stringify({"title": item.title, 'completed': item.completed})
+            }).then(response => {
+                renderList();
+            });
+        }
+    </script>
+</body>
+</html>
